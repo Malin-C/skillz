@@ -1,6 +1,6 @@
 # skillz
 
-A collection of custom skills for Claude Code. Each skill is self-contained under `skills/<skill-name>/` and can be installed into a Claude Code environment with `./install.sh`.
+A collection of custom skills for Claude Code. Each skill is self-contained under `skills/<skill-name>/`. Install any skill into a Claude Code environment with `./install.sh`.
 
 ## Layout
 
@@ -35,7 +35,8 @@ List available skills:
 Uninstall:
 
 ```bash
-./install.sh --uninstall <skill-name>
+./install.sh --uninstall <skill-name>                        # global
+./install.sh --uninstall <skill-name> /path/to/target/repo   # project
 ```
 
 ## Skills
