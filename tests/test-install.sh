@@ -55,4 +55,84 @@ if "$INSTALL" nonexistent-skill "$tmp" 2>/dev/null; then
   echo "FAIL: install of non-existent skill did not error"; exit 1
 fi
 
+# Case 5: overwrite prompt - deny path (default N via empty input)
+"$INSTALL" _fake-test-skill "$tmp" >/dev/null
+rc=0
+err=$(printf '\n' | "$INSTALL" _fake-test-skill "$tmp" 2>&1 >/dev/null) || rc=$?
+if [ "$rc" -eq 0 ]; then
+  echo "FAIL: overwrite deny path should exit non-zero"; exit 1
+fi
+if ! echo "$err" | grep -q "aborted"; then
+  echo "FAIL: overwrite deny path did not print 'aborted': $err"; exit 1
+fi
+if [ ! -L "$link" ]; then
+  echo "FAIL: symlink should still be present after declined overwrite"; exit 1
+fi
+target=$(readlink "$link")
+if [ "$target" != "$fake" ]; then
+  echo "FAIL: symlink target changed after declined overwrite: $target"; exit 1
+fi
+
+# Case 6: overwrite prompt - accept path
+rc=0
+out=$(printf 'y\n' | "$INSTALL" _fake-test-skill "$tmp") || rc=$?
+if [ "$rc" -ne 0 ]; then
+  echo "FAIL: overwrite accept path should exit 0"; exit 1
+fi
+if ! echo "$out" | grep -q "installed:"; then
+  echo "FAIL: overwrite accept path did not print 'installed:': $out"; exit 1
+fi
+if [ ! -L "$link" ]; then
+  echo "FAIL: symlink should be present after accepted overwrite"; exit 1
+fi
+target=$(readlink "$link")
+if [ "$target" != "$fake" ]; then
+  echo "FAIL: symlink target wrong after accepted overwrite: $target"; exit 1
+fi
+
+# cleanup for subsequent cases
+"$INSTALL" --uninstall _fake-test-skill "$tmp" >/dev/null
+
+# Case 7: uninstall refuses to touch a real (non-symlink) directory
+realdir="$tmp/.claude/skills/realdir"
+mkdir -p "$realdir"
+echo "important data" > "$realdir/file.txt"
+rc=0
+err=$("$INSTALL" --uninstall realdir "$tmp" 2>&1 >/dev/null) || rc=$?
+if [ "$rc" -eq 0 ]; then
+  echo "FAIL: uninstall of real directory should error"; exit 1
+fi
+if [ ! -d "$realdir" ] || [ ! -f "$realdir/file.txt" ]; then
+  echo "FAIL: real directory or its contents were removed"; exit 1
+fi
+
+# Case 8: uninstall of a nonexistent skill exits 0 with 'not installed'
+rc=0
+out=$("$INSTALL" --uninstall does-not-exist "$tmp" 2>&1) || rc=$?
+if [ "$rc" -ne 0 ]; then
+  echo "FAIL: uninstall of nonexistent skill should exit 0"; exit 1
+fi
+if ! echo "$out" | grep -q "not installed"; then
+  echo "FAIL: uninstall of nonexistent skill did not print 'not installed': $out"; exit 1
+fi
+
+# Case 9: invalid skill name with path traversal errors
+rc=0
+"$INSTALL" ../foo "$tmp" >/dev/null 2>&1 || rc=$?
+if [ "$rc" -eq 0 ]; then
+  echo "FAIL: install with path-traversal name should error"; exit 1
+fi
+
+# Case 10: non-interactive EOF on overwrite prompt aborts gracefully
+"$INSTALL" _fake-test-skill "$tmp" >/dev/null
+rc=0
+err=$("$INSTALL" _fake-test-skill "$tmp" </dev/null 2>&1 >/dev/null) || rc=$?
+if [ "$rc" -eq 0 ]; then
+  echo "FAIL: EOF on overwrite prompt should exit non-zero"; exit 1
+fi
+if ! echo "$err" | grep -q "aborted"; then
+  echo "FAIL: EOF on overwrite prompt did not print 'aborted': $err"; exit 1
+fi
+"$INSTALL" --uninstall _fake-test-skill "$tmp" >/dev/null
+
 echo "OK"
