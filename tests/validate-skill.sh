@@ -18,29 +18,44 @@ if [ ! -f "$SKILL_DIR/SKILL.md" ]; then
   exit 1
 fi
 
-# Frontmatter check: first line must be "---", must contain name: and description:
+# Frontmatter check: first line must be "---", a closing "---" must exist,
+# and the frontmatter block (between the two "---" lines) must contain
+# name: and description:.
 first=$(head -n 1 "$SKILL_DIR/SKILL.md")
 if [ "$first" != "---" ]; then
   echo "error: SKILL.md missing frontmatter (first line must be ---)" >&2
   exit 1
 fi
-if ! grep -qE '^name:' "$SKILL_DIR/SKILL.md"; then
+
+closing_line=$(awk 'NR>1 && /^---$/ { print NR; exit }' "$SKILL_DIR/SKILL.md")
+if [ -z "$closing_line" ]; then
+  echo "error: SKILL.md frontmatter missing closing '---'" >&2
+  exit 1
+fi
+
+frontmatter=$(sed -n "2,$((closing_line - 1))p" "$SKILL_DIR/SKILL.md")
+if ! echo "$frontmatter" | grep -qE '^name:'; then
   echo "error: SKILL.md frontmatter missing 'name:'" >&2
   exit 1
 fi
-if ! grep -qE '^description:' "$SKILL_DIR/SKILL.md"; then
+if ! echo "$frontmatter" | grep -qE '^description:'; then
   echo "error: SKILL.md frontmatter missing 'description:'" >&2
   exit 1
 fi
 
-# Extract mistake numbers from the index in SKILL.md
-# Format expected: "#123 Some title [verify]" or "#123 Some title"
-index_nums=$(grep -oE '#[0-9]+' "$SKILL_DIR/SKILL.md" | sort -u || true)
+# Extract mistake numbers from the index in SKILL.md.
+# Index lines look like: "- #123 Some title [verify]"
+# Anchored to the start of the line so prose mentions like "see #45" or
+# a "#123" inside a fenced code example don't get picked up.
+index_nums=$(grep -oE '^- #[0-9]+' "$SKILL_DIR/SKILL.md" | grep -oE '#[0-9]+' | sort -u || true)
 
-# Extract mistake numbers from reference headings
+# Extract mistake numbers from reference headings.
+# Heading lines look like: "### #123 — Some title [verify]"
+# Require a boundary (whitespace or end of line) after the number so
+# "### #123abc" is not mistaken for "#123".
 ref_nums=""
 if [ -d "$SKILL_DIR/references" ]; then
-  ref_nums=$(grep -horE '^### #[0-9]+' "$SKILL_DIR/references"/*.md 2>/dev/null \
+  ref_nums=$(grep -horE '^### #[0-9]+([[:space:]]|$)' "$SKILL_DIR/references"/*.md 2>/dev/null \
              | grep -oE '#[0-9]+' | sort -u || true)
 fi
 
