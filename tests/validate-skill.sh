@@ -46,8 +46,10 @@ fi
 # Extract mistake numbers from the index in SKILL.md.
 # Index lines look like: "- #123 Some title [verify]"
 # Anchored to the start of the line so prose mentions like "see #45" or
-# a "#123" inside a fenced code example don't get picked up.
-index_nums=$(grep -oE '^- #[0-9]+' "$SKILL_DIR/SKILL.md" | grep -oE '#[0-9]+' | sort -u || true)
+# a "#123" inside a fenced code example don't get picked up. Also require
+# a boundary (whitespace or end of line) after the number so "- #123abc"
+# is not mistaken for "#123".
+index_nums=$(grep -oE '^- #[0-9]+([[:space:]]|$)' "$SKILL_DIR/SKILL.md" | grep -oE '#[0-9]+' | sort -u || true)
 
 # Extract mistake numbers from reference headings.
 # Heading lines look like: "### #123 — Some title [verify]"

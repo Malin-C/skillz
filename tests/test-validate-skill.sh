@@ -144,4 +144,27 @@ if "$VALIDATE" "$tmp/no-closing-frontmatter" 2>/dev/null; then
   exit 1
 fi
 
+# Case 9: malformed index line (- #123abc Title) is not treated as #123.
+# With a real #123 reference and no valid #123 index entry, this must fail
+# with an orphan-reference error, not silently pass.
+mkdir -p "$tmp/malformed-index/references"
+cat > "$tmp/malformed-index/SKILL.md" <<'EOF'
+---
+name: test
+description: test
+---
+
+## Index
+
+- #123abc A mistake [verify]
+EOF
+cat > "$tmp/malformed-index/references/cat.md" <<'EOF'
+### #123 — A mistake [verify]
+body
+EOF
+if "$VALIDATE" "$tmp/malformed-index" 2>/dev/null; then
+  echo "FAIL: validator passed with malformed index line (- #123abc treated as #123)"
+  exit 1
+fi
+
 echo "OK"
