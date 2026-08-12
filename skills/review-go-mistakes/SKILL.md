@@ -139,7 +139,129 @@ Rules:
 
 ## Index of the 100 mistakes
 
-<!-- This section is populated in Task 17 of the implementation plan. -->
+### Code and project organization
+- #1 Unintended variable shadowing [verify]
+- #2 Unnecessary nested code [verify]
+- #3 Misusing init functions [verify]
+- #4 Overusing getters and setters [verify]
+- #5 Interface pollution [verify]
+- #6 Interface on the wrong side [verify]
+- #7 Returning interfaces [verify]
+- #8 any says nothing [verify]
+- #9 Being confused about when to use generics [verify]
+- #10 Problems with type embedding [verify]
+- #11 Not using the functional options pattern [verify]
+
+### Data types
+- #12 Creating confusion with octal literals [verify]
+- #13 Neglecting integer overflows [verify]
+- #14 Not understanding floating points [verify]
+- #15 Not understanding slice length and capacity [verify]
+- #16 Inefficient slice initialization [verify]
+- #17 Being confused about nil vs. empty slices [verify]
+- #18 Not properly checking if a slice is empty [verify]
+- #19 Not making slice copies correctly [verify]
+- #20 Unexpected side effects using slice append [verify]
+- #21 Slices and memory leaks [verify]
+- #22 Inefficient map initialization [verify]
+- #23 Maps and memory leaks [verify]
+
+### Control structures
+- #24 Ignoring that elements are copied in range loops [verify]
+- #25 Ignoring how arguments are evaluated in range loops [verify]
+- #26 Ignoring the impact of using pointer elements in range loops [verify]
+- #27 Making wrong assumptions during map iterations [verify]
+- #28 Ignoring how break works with switch and select [verify]
+- #29 Using defer inside a loop [verify]
+
+### Strings
+- #30 Not understanding the concept of a rune [verify]
+- #31 Inaccurate string iteration [verify]
+- #32 Misusing trim functions [verify]
+- #33 Under-optimized string concatenation [verify]
+- #34 Useless string conversions [verify]
+- #35 Substring and memory leaks [verify]
+- #36 Passing a byte slice to a function that keeps a reference [verify][low-confidence]
+
+### Functions and methods
+- #37 Not knowing which type of receiver to use [verify]
+- #38 Never using named result parameters [verify]
+- #39 Unintended side effects with named result parameters [verify]
+- #40 Returning a nil receiver [verify]
+- #41 Using a filename as a function input [verify]
+- #42 Ignoring how defer arguments and receivers are evaluated [verify]
+- #43 Misusing pointers to defer function calls [verify]
+
+### Error management
+- #44 Panicking [verify]
+- #45 Ignoring when to wrap an error [verify]
+- #46 Comparing an error type inaccurately [verify]
+- #47 Comparing an error value inaccurately [verify]
+- #48 Handling the same error twice [verify]
+- #49 Not handling an error [verify]
+- #50 Not handling defer errors [verify]
+- #51 Not using errors.Is and errors.As after Go 1.13 [verify]
+
+### Concurrency (foundations)
+- #52 Mixing up concurrency and parallelism [verify]
+- #53 Thinking concurrency is always faster [verify]
+- #54 Being puzzled about when to use channels vs mutexes [verify]
+- #55 Not understanding the Go memory model and happens-before [verify]
+- #56 Creating goroutines without understanding when to stop them [verify]
+- #57 Not being careful with goroutines and loop variables [verify]
+- #58 Expecting deterministic behavior in select with multiple ready channels [verify]
+- #59 Not using notification channels correctly [verify]
+- #60 Not using nil channels intentionally [verify]
+
+### Concurrency (practice)
+- #61 Providing a wrong channel size [verify]
+- #62 Forgetting about possible side effects with string formatting [verify]
+- #63 Creating data races with append on a shared slice [verify]
+- #64 Using mutexes inaccurately with slices and maps [verify]
+- #65 Misusing sync.WaitGroup [verify]
+- #66 Forgetting about sync.Cond [verify]
+- #67 Not using errgroup for goroutine coordination [verify]
+- #68 Copying a sync type after first use [verify]
+- #69 Using time.After and leaking resources [verify]
+- #70 Common mistakes with context.Context [verify]
+
+### Standard library
+- #71 Providing a wrong time duration [verify]
+- #72 Compiling a regular expression on every call [verify]
+- #73 Common JSON handling mistakes [verify]
+- #74 Common SQL mistakes [verify]
+- #75 Not closing transient resources [verify]
+- #76 Forgetting the return statement after http.Error [verify]
+- #77 Using the default HTTP client and server [verify]
+- #78 Concurrent map access without synchronization [verify]
+
+### Testing
+- #79 Not categorizing tests [verify]
+- #80 Not enabling the `-race` flag [verify]
+- #81 Not using test execution modes [verify]
+- #82 Not using table-driven tests [verify]
+- #83 Sleeping in tests [verify]
+- #84 Not dealing with the `time` API efficiently [verify]
+- #85 Not using testing utilities [verify]
+- #86 Writing inaccurate benchmarks [verify]
+- #87 Not using `t.Helper()` and other Go testing features [verify]
+
+### Optimizations
+- #88 Not understanding CPU caches [verify]
+- #89 Writing concurrent code that leads to false sharing [verify]
+- #90 Not being aware of data alignment [verify]
+- #91 Not understanding stack vs heap [verify]
+- #92 Not knowing how to reduce allocations [verify]
+- #93 Not using Go diagnostic tools [verify]
+- #94 Not understanding how the garbage collector works [verify]
+- #95 Not understanding the impact of running Go inside Docker and Kubernetes [verify]
+
+### Production
+- #96 Not exposing metrics [verify]
+- #97 Not enabling profiling endpoints in production [verify]
+- #98 Not using structured logging [verify]
+- #99 Not handling graceful shutdown [verify]
+- #100 Not being aware of runtime configuration [verify]
 
 ## Language
 
