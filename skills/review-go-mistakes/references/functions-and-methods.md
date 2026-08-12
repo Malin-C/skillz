@@ -307,4 +307,3 @@ func process() {
 **Related:** [[mistake-42-ignoring-how-defer-arguments-and-receivers-are-evaluated]]
 
 ---
-</content>

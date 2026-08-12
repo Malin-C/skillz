@@ -447,4 +447,3 @@ func withTimeout() {
 **Related:** [[mistake-56-creating-goroutines-without-understanding-when-to-stop-them]], [[mistake-67-not-using-errgroup-for-goroutine-coordination]]
 
 ---
-</content>

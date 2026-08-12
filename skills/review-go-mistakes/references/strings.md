@@ -254,4 +254,3 @@ func (c *Cache) Store(b []byte) {
 ```
 
 **Related:** [[mistake-35-substring-and-memory-leaks]]
-</content>

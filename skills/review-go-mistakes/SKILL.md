@@ -135,7 +135,7 @@ Rules:
 - Omit categories with zero findings.
 - Order findings within a category by severity.
 - Code excerpts are capped at 10 lines. Longer blocks show an ellipsis.
-- The footer lists the skill version and any paths that were skipped.
+- The footer lists any paths that were skipped.
 
 ## Index of the 100 mistakes
 
