@@ -14,31 +14,35 @@ docs/superpowers/plans/         implementation plans
 
 ## Install a skill
 
-Global install (all projects):
-
 ```bash
-./install.sh <skill-name>
+./install.sh <skill-name>                              # global (~/.claude/skills)
+./install.sh <skill-name> /path/to/target/repo         # single project
 ```
 
-Project install (single repo):
-
-```bash
-./install.sh <skill-name> /path/to/target/repo
-```
-
-List available skills:
+## List available skills
 
 ```bash
 ./install.sh --list
 ```
 
-Uninstall:
+## Uninstall
 
 ```bash
 ./install.sh --uninstall <skill-name>                        # global
-./install.sh --uninstall <skill-name> /path/to/target/repo   # project
+./install.sh --uninstall <skill-name> /path/to/target/repo   # single project
 ```
 
 ## Skills
 
-See individual skill folders under `skills/` for details.
+### review-go-mistakes
+
+Reviews Go source code against the 100 mistakes from *100 Go Mistakes and How to Avoid Them* (Teiva Harsanyi, Manning, 2022). Writes a markdown report grouped by book category. Report language follows ASD-STE100 Simplified Technical English.
+
+Install:
+
+```bash
+./install.sh review-go-mistakes                        # global
+./install.sh review-go-mistakes /path/to/target/repo   # single project
+```
+
+See [skills/review-go-mistakes/SKILL.md](skills/review-go-mistakes/SKILL.md) for full details.
