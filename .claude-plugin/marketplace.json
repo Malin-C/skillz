@@ -1,16 +1,26 @@
 {
   "name": "skillz",
-  "description": "Personal collection of custom skills for Claude Code",
+  "description": "Personal collection of custom skills and workflow plugins for Claude Code",
   "owner": {
     "name": "Malin Cumpanasu",
     "email": "malinc20@gmail.com"
   },
   "plugins": [
     {
-      "name": "skillz",
-      "description": "Personal collection of custom skills for Claude Code",
-      "version": "1.0.0",
-      "source": "./",
+      "name": "craft",
+      "description": "Spec-driven development workflow for Claude Code: brainstorming, planning, subagent-driven execution, code review, and branch finishing",
+      "version": "0.1.0",
+      "source": "./plugins/craft",
+      "author": {
+        "name": "Malin Cumpanasu",
+        "email": "malinc20@gmail.com"
+      }
+    },
+    {
+      "name": "go-mistakes",
+      "description": "Reviews Go source code against the 100 mistakes from Harsanyi's book",
+      "version": "0.1.0",
+      "source": "./plugins/go-mistakes",
       "author": {
         "name": "Malin Cumpanasu",
         "email": "malinc20@gmail.com"

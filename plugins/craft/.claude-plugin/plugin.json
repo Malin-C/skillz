@@ -1,0 +1,18 @@
+{
+  "name": "craft",
+  "description": "Spec-driven development workflow for Claude Code: brainstorming, planning, subagent-driven execution, code review, and finishing branches.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Malin Cumpanasu",
+    "email": "malinc20@gmail.com"
+  },
+  "repository": "git@github-malin:Malin-C/skillz.git",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "tdd",
+    "workflow",
+    "spec-driven",
+    "subagents"
+  ]
+}

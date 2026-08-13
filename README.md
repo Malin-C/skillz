@@ -1,48 +1,51 @@
 # skillz
 
-A collection of custom skills for Claude Code. Each skill is self-contained under `skills/<skill-name>/`. Install any skill into a Claude Code environment with `./install.sh`.
+A personal marketplace of Claude Code plugins.
+
+## Plugins
+
+### craft
+
+Spec-driven development workflow for Claude Code: brainstorming, planning, subagent-driven execution, code review, and branch finishing.
+
+Location: [plugins/craft/](plugins/craft/)
+
+### go-mistakes
+
+Reviews Go source code against the 100 mistakes from *100 Go Mistakes and How to Avoid Them* (Teiva Harsanyi, Manning, 2022). Produces a markdown report grouped by book category, written in ASD-STE100 Simplified Technical English.
+
+Location: [plugins/go-mistakes/](plugins/go-mistakes/)
+
+## Install
+
+Add this marketplace to Claude Code:
+
+```
+/plugin marketplace add Malin-C/skillz
+```
+
+Then install individual plugins:
+
+```
+/plugin install craft@skillz
+/plugin install go-mistakes@skillz
+```
 
 ## Layout
 
 ```
-skills/                         one directory per skill
-install.sh                      installer script
-tests/                          shared test scripts
-docs/superpowers/specs/         design specs
-docs/superpowers/plans/         implementation plans
+.claude-plugin/marketplace.json     marketplace manifest listing all plugins
+plugins/<name>/                     one directory per plugin
+  .claude-plugin/plugin.json        plugin manifest
+  skills/                           one subdirectory per skill
+  agents/                           agent definitions (optional)
+  commands/                         slash commands (optional)
+  hooks/                            hooks (optional)
+tests/                              shared test scripts
+docs/craft/specs/                   design specs
+docs/craft/plans/                   implementation plans
 ```
 
-## Install a skill
+## License
 
-```bash
-./install.sh <skill-name>                              # global (~/.claude/skills)
-./install.sh <skill-name> /path/to/target/repo         # single project
-```
-
-## List available skills
-
-```bash
-./install.sh --list
-```
-
-## Uninstall
-
-```bash
-./install.sh --uninstall <skill-name>                        # global
-./install.sh --uninstall <skill-name> /path/to/target/repo   # single project
-```
-
-## Skills
-
-### review-go-mistakes
-
-Reviews Go source code against the 100 mistakes from *100 Go Mistakes and How to Avoid Them* (Teiva Harsanyi, Manning, 2022). Writes a markdown report grouped by book category. Report language follows ASD-STE100 Simplified Technical English.
-
-Install:
-
-```bash
-./install.sh review-go-mistakes                        # global
-./install.sh review-go-mistakes /path/to/target/repo   # single project
-```
-
-See [skills/review-go-mistakes/SKILL.md](skills/review-go-mistakes/SKILL.md) for full details.
+Plugins in this repository are MIT-licensed. See [plugins/craft/LICENSE](plugins/craft/LICENSE).

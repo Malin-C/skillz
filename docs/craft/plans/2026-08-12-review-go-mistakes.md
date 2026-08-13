@@ -1,6 +1,6 @@
 # review-go-mistakes Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use craft:subagent-driven-development (recommended) or craft:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the first skill in the `skillz` monorepo — a Go code review skill that checks source against all 100 mistakes from Harsanyi's book, writes findings to a category-grouped markdown report in ASD-STE100 English, and installs into any project via a small bash script.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Markdown (skill files), Bash (install + validation), `bats` or plain bash test scripts for install-script tests.
 
-**Spec:** `docs/superpowers/specs/2026-08-12-review-go-mistakes-design.md`
+**Spec:** `docs/craft/specs/2026-08-12-review-go-mistakes-design.md`
 
 **Language rule (applies to all authored content):** All text in `SKILL.md`, every `references/*.md`, `README.md`, and any output the skill produces must follow ASD-STE100 Simplified Technical English:
 - Approved words from the STE dictionary.
@@ -90,8 +90,8 @@ A collection of custom skills for Claude Code. Each skill is self-contained unde
 skills/                         one directory per skill
 install.sh                      installer script
 tests/                          shared test scripts
-docs/superpowers/specs/         design specs
-docs/superpowers/plans/         implementation plans
+docs/craft/specs/         design specs
+docs/craft/plans/         implementation plans
 ```
 
 ## Install a skill
