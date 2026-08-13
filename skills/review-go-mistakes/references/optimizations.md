@@ -18,10 +18,10 @@ Every entry starts as `[verify]`. Drop the tag after cross-check against the boo
 - A slice of pointers to structs used in a tight loop, instead of a slice of the structs themselves.
 
 **Why this is a mistake:**
-The CPU pulls memory into cache in fixed-size blocks, called cache lines, that hold about 64 bytes. Code that reads memory in a jumping order forces the CPU to fetch a new cache line on almost every access, so the loop waits on main memory instead of running at cache speed.
+The CPU pulls memory into cache in fixed-size blocks, called cache lines, that hold about 64 bytes. Code that reads memory in a jumping order forces the CPU to fetch a new cache line on almost every access. The loop then waits on main memory instead of running at cache speed.
 
 **Fix:**
-Walk data in the same order it sits in memory: row by row for a row-major slice. Prefer contiguous data, such as a slice of structs, over data spread across separate allocations, such as a slice of pointers.
+Walk data in the same order it sits in memory: row by row for a row-major slice. Prefer contiguous data, such as a slice of structs. Avoid data spread across separate allocations, such as a slice of pointers.
 
 **Before:**
 ```go
@@ -61,7 +61,7 @@ for row := 0; row < n; row++ {
 - A benchmark that shows a multi-goroutine version slower than expected, with no lock contention in the profile.
 
 **Why this is a mistake:**
-Two variables that sit on the same cache line count as one unit to the cache-coherency system, even when different goroutines never touch the same variable. A write from one core marks the whole line invalid on other cores, so unrelated updates on separate cores fight over the same cache line and slow each other down.
+Two variables on the same cache line count as one unit to the cache-coherency system, even when different goroutines never touch the same variable. A write from one core marks the whole line invalid on other cores. Unrelated updates on separate cores then fight over the same cache line and slow each other down.
 
 **Fix:**
 Separate per-goroutine data onto different cache lines. Add padding fields, or space out array elements, so each goroutine writes to its own line, typically 64 bytes apart.
@@ -98,10 +98,10 @@ type counters struct {
 - A large slice of a struct type, where the struct's memory footprint matters for cache use and total memory.
 
 **Why this is a mistake:**
-Go pads a struct so each field starts at an address that matches its own alignment requirement. Field order that mixes small and large fields inserts padding between them, which grows the struct's size with no matching gain, and wastes memory across a large slice of that struct.
+Go pads a struct so each field starts at an address that matches its own alignment requirement. Field order that mixes small and large fields inserts padding between them. This grows the struct's size with no matching gain, and wastes memory across a large slice of that struct.
 
 **Fix:**
-Order struct fields from largest alignment requirement to smallest, for example pointers and `int64` first, then `int32`, then `bool` and `byte`. This groups padding at the end instead of scattering it between fields.
+Order struct fields from largest alignment requirement to smallest: pointers and `int64` first, then `int32`, then `bool` and `byte`. This groups padding at the end instead of scattering it between fields.
 
 **Before:**
 ```go
@@ -137,10 +137,10 @@ type record struct {
 - No use of `go build -gcflags="-m"` to check escape analysis on code under performance review.
 
 **Why this is a mistake:**
-The Go compiler decides at build time whether a variable stays on the function's stack, freed automatically when the function returns, or escapes to the heap, where the garbage collector must track and later free it. A variable that escapes when it did not need to adds an allocation and extra GC work on every call.
+The Go compiler decides at build time whether a variable stays on the function's stack, or escapes to the heap. A stack variable frees automatically when the function returns. A heap variable needs the garbage collector to track and later free it. A variable that escapes when it did not need to adds an allocation and extra GC work on every call.
 
 **Fix:**
-Run escape analysis with `go build -gcflags="-m"` to see which variables escape and why. On a hot path, avoid patterns that force an unneeded escape, such as returning a pointer to a local value that the caller only reads once.
+Run escape analysis with `go build -gcflags="-m"` to see which variables escape and why. On a hot path, avoid patterns that force an unneeded escape. One example is returning a pointer to a local value the caller only reads once.
 
 **Before:**
 ```go
@@ -174,7 +174,7 @@ func newPoint(x, y int) Point {
 Each allocation on a hot path adds work for the allocator and adds pressure that brings the garbage collector back sooner. A function called often that allocates a short-lived object every time spends CPU time on setup and cleanup instead of on its actual task.
 
 **Fix:**
-Reuse short-lived, expensive-to-allocate objects with a `sync.Pool`. Pre-allocate slices and maps at the expected size with `make` before a loop, instead of growing them one `append` or insert at a time.
+Reuse short-lived, expensive-to-allocate objects with a `sync.Pool`. Pre-allocate slices and maps at the expected size with `make` before a loop. Do not grow them one `append` or insert at a time.
 
 **Before:**
 ```go
@@ -242,10 +242,10 @@ import _ "net/http/pprof"
 - A long-running service with default GC settings and no use of `GODEBUG=gctrace=1` to observe GC behavior.
 
 **Why this is a mistake:**
-Go's garbage collector runs concurrently with the program and paces its own work against the rate of heap growth, controlled by `GOGC` (a target heap growth percentage, 100 by default). A team that does not know this can either chase allocation reduction where it does not help, or miss that `GOGC` or `GOMEMLIMIT` tuning would fix a latency problem directly.
+Go's garbage collector runs concurrently with the program. It paces its own work against the rate of heap growth, controlled by `GOGC` (a target heap growth percentage, 100 by default). A team that does not know this can chase allocation reduction where it does not help. It can also miss that `GOGC` or `GOMEMLIMIT` tuning would fix a latency problem directly.
 
 **Fix:**
-Learn the GC's concurrent mark-and-sweep design and its `GOGC` pacing target. Tune `GOGC` for services that trade memory for less GC work, or set a hard cap with `GOMEMLIMIT` (Go 1.19 and later) for services that must stay under a fixed memory budget. Check `GODEBUG=gctrace=1` output to observe actual GC frequency and pause time.
+Learn the GC's concurrent mark-and-sweep design and its `GOGC` pacing target. Tune `GOGC` for services that trade memory for less GC work. On Go 1.19 and later, set a hard cap with `GOMEMLIMIT` for services that must stay under a memory budget. Check `GODEBUG=gctrace=1` output to observe actual GC frequency and pause time.
 
 **Before:**
 ```go
@@ -266,15 +266,16 @@ debug.SetMemoryLimit(2 << 30) // 2 GiB soft cap, or set GOMEMLIMIT=2GiB
 ### #95 — Not understanding the impact of running Go inside Docker and Kubernetes [verify]
 
 **Pattern to look for:**
-- A container with a CPU limit set, such as `resources.limits.cpu: 2` in a Kubernetes manifest, on a Go runtime older than 1.25 with no `GOMAXPROCS` set and no `automaxprocs`-style library in use.
+- A container with a CPU limit set, such as `resources.limits.cpu: 2` in a Kubernetes manifest, on a Go runtime older than 1.25.
+- No `GOMAXPROCS` set and no `automaxprocs`-style library in use on that older runtime.
 - A container killed by the kernel's out-of-memory handler, with a memory limit set on the container but no `GOMEMLIMIT` set on the Go process.
 - No mention of CPU or memory limits in a deployment review for a Go service that runs in a container.
 
 **Why this is a mistake:**
-Before Go 1.25, the runtime set `GOMAXPROCS` to the host's full logical CPU count, not the container's CPU quota, so a container capped at 2 CPUs could still run as many OS threads as the host has cores, adding scheduling overhead and throttling. Go 1.25 reads the cgroup CPU quota and sets `GOMAXPROCS` to match it by default, but only when `GOMAXPROCS` is not set some other way. Separately, with no `GOMEMLIMIT` set, the GC has no view of the container's memory cap and can let the heap grow until the kernel OOM-kills the process.
+Before Go 1.25, the runtime set `GOMAXPROCS` to the host's full logical CPU count, not the container's CPU quota. A container capped at 2 CPUs could still run as many OS threads as the host has cores, adding scheduling overhead and throttling. Go 1.25 reads the cgroup CPU quota and sets `GOMAXPROCS` to match it by default, but only when `GOMAXPROCS` is not set some other way. Separately, with no `GOMEMLIMIT` set, the GC has no view of the container's memory cap. It can let the heap grow until the kernel OOM-kills the process.
 
 **Fix:**
-On Go 1.25 and later, leave `GOMAXPROCS` unset so the runtime reads the container's CPU quota automatically. On earlier versions, set `GOMAXPROCS` to the container's CPU limit directly, or use a library that reads the cgroup quota at startup. Set `GOMEMLIMIT` to a value under the container's memory limit, so the GC keeps the heap under a safe cap.
+On Go 1.25 and later, leave `GOMAXPROCS` unset so the runtime reads the container's CPU quota automatically. On earlier versions, set `GOMAXPROCS` to the container's CPU limit directly. As an alternative, use a library that reads the cgroup quota at startup. Set `GOMEMLIMIT` to a value under the container's memory limit, so the GC keeps the heap under a safe cap.
 
 **Before:**
 ```go

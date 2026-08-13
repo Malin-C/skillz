@@ -18,10 +18,10 @@ Every entry starts as `[verify]`. Drop the tag after cross-check against the boo
 - Code that treats an unbuffered channel and a buffered channel as interchangeable.
 
 **Why this is a mistake:**
-An unbuffered channel makes every send block until a receiver is ready, which is the correct choice for a pure signal or a handoff. A buffered channel with an arbitrary size can hide a slow consumer for a while and then block anyway, or waste memory holding values no one reads for a long stretch. Neither problem shows up until load grows.
+An unbuffered channel makes every send block until a receiver is ready, which is the correct choice for a pure signal or a handoff. A buffered channel with an arbitrary size can hide a slow consumer for a while, then block anyway. It can also waste memory, holding values that no one reads for a long stretch. Neither problem shows up until load grows.
 
 **Fix:**
-Default to an unbuffered channel for synchronization. Choose a buffer size only for a known, bounded reason, such as a fixed number of workers, and write down that reason next to the `make` call.
+Default to an unbuffered channel for synchronization. Choose a buffer size only for a known, bounded reason, such as a fixed number of workers. Write that reason next to the `make` call.
 
 **Before:**
 ```go
@@ -57,10 +57,10 @@ go func() {
 - Logging or debug code that formats a shared struct with no check for a lock field inside it.
 
 **Why this is a mistake:**
-The `fmt` package uses reflection to walk a struct's fields when no `String()` method exists, and this walk can call `String()` on the struct itself if the struct's method set includes it. When that method locks the same mutex the formatting call reaches through reflection, or when the struct changes concurrently while a formatting call reads it with no lock, the result ranges from a data race to a deadlock.
+The `fmt` package uses reflection to walk a struct's fields when no `String()` method exists. This walk can call `String()` on the struct itself if the struct's method set includes it. That method can deadlock if it locks the same mutex the formatting call reaches through reflection. It can also cause a data race if the struct changes concurrently while a formatting call reads it with no lock.
 
 **Fix:**
-Do not format a struct that holds a `sync.Mutex` or another `sync` type directly. Write an explicit `String()` method that locks the mutex before it reads the guarded fields, or format only a snapshot copy taken under the lock.
+Do not format a struct that holds a `sync.Mutex` or another `sync` type directly. Write an explicit `String()` method that locks the mutex before it reads the guarded fields. As an alternative, format only a snapshot copy taken under the lock.
 
 **Before:**
 ```go
@@ -95,10 +95,10 @@ fmt.Println(c)
 - No mutex or channel around a slice write reachable from more than one goroutine.
 
 **Why this is a mistake:**
-`append` can write into the slice's backing array in place when capacity allows, and it always reads and updates the slice header's length. Two goroutines that call `append` on views of the same backing array, or that share one slice variable, race on both the array contents and the header, even when each goroutine appears to work with its "own" slice.
+`append` can write into the slice's backing array in place when capacity allows, and it always reads and updates the slice header's length. Two goroutines can call `append` on views of the same backing array, or share one slice variable. Either case races on both the array contents and the header, even when each goroutine appears to use its own slice.
 
 **Fix:**
-Give each goroutine an independent backing array, sized so no `append` call can touch another goroutine's region, or guard every append to the shared slice with a mutex. Merge per-goroutine results after all goroutines finish.
+Give each goroutine an independent backing array, sized so no `append` call can touch another goroutine's region. As an alternative, guard every append to the shared slice with a mutex. Merge per-goroutine results after all goroutines finish.
 
 **Before:**
 ```go
@@ -141,14 +141,15 @@ wg.Wait()
 
 **Pattern to look for:**
 - A struct field of slice or map type, with a mutex declared next to it but locked only around some of the accesses.
-- A getter method that returns the slice or map field itself, taken while the lock is held, and handed to a caller that reads it after the lock releases.
+- A getter method that returns the slice or map field itself, taken while the lock is held.
+- A returned slice or map handed to a caller that reads it only after the lock releases.
 - Read access to a shared slice or map with no `RLock`/`Lock` at all, next to write access that does lock.
 
 **Why this is a mistake:**
-A mutex protects a field only while every access, read and write alike, goes through the lock. Returning the shared slice or map value itself, rather than a copy, hands the caller a reference that keeps changing after the lock releases, so the caller reads unguarded data even though the method looked correct.
+A mutex protects a field only while every access, read and write alike, goes through the lock. An accessor that returns the shared slice or map value itself, not a copy, hands the caller a live reference. The caller then reads unguarded data as the value keeps changing after the lock releases, even though the method looked correct.
 
 **Fix:**
-Lock around every read and every write to the guarded field, including reads. Return a copy of the slice or map from an accessor method taken while the lock is held, not the shared value itself.
+Lock around every read and every write to the guarded field, including reads. Return a copy of the slice or map from an accessor method, taken while the lock is held. Do not return the shared value itself.
 
 **Before:**
 ```go
@@ -228,13 +229,14 @@ wg.Wait()
 **Pattern to look for:**
 - A goroutine that polls a shared condition in a tight loop with `time.Sleep` between checks, guarded by a mutex.
 - Custom code that reimplements a wait-for-condition-then-wake pattern with a channel closed and recreated over and over.
-- A one-to-many notification need, where more than one waiting goroutine must wake on the same state change, solved with a `chan struct{}` sized for only one receiver.
+- A one-to-many notification need, where more than one waiting goroutine must wake on the same state change.
+- Code that solves this with a `chan struct{}` sized for only one receiver.
 
 **Why this is a mistake:**
-A closed channel notifies every waiter once, but the pattern falls apart when the condition can become true and false again, since a channel cannot reopen. Polling with `time.Sleep` wastes CPU and adds latency between the state change and the moment a waiter notices it. `sync.Cond` exists for exactly this case: wait on a condition guarded by a lock, and wake one or all waiters on a change, with no busy loop.
+A closed channel notifies every waiter once, but the pattern fails once the condition can become true and false, since a channel cannot reopen. A poll loop that uses `time.Sleep` wastes CPU and adds latency between the state change and the moment a waiter notices it. `sync.Cond` exists for exactly this case. It lets code wait on a condition guarded by a lock, then wake one or all waiters on a change, with no busy loop.
 
 **Fix:**
-Use `sync.Cond` with `Wait`, `Signal`, and `Broadcast` when goroutines must block until a condition tied to shared, mutex-guarded state becomes true, especially when the condition can flip more than once.
+Use `sync.Cond` with `Wait`, `Signal`, and `Broadcast` when goroutines must block until a shared, mutex-guarded condition becomes true. This fits best when the condition can flip more than once.
 
 **Before:**
 ```go
@@ -268,15 +270,16 @@ mu.Unlock()
 ### #67 — Not using errgroup for goroutine coordination [verify]
 
 **Pattern to look for:**
-- Several goroutines launched to do related work, each able to fail, with a hand-rolled `sync.WaitGroup` plus a separate shared variable or channel to collect the first error.
+- Several goroutines launched to do related work, each able to fail.
+- A hand-rolled `sync.WaitGroup` plus a separate shared variable or channel that collects the first error.
 - No cancellation of the remaining goroutines when one of them returns an error.
 - Manual `context.WithCancel` plumbing next to a `sync.WaitGroup`, built by hand to reach what `errgroup` already provides.
 
 **Why this is a mistake:**
-A plain `sync.WaitGroup` has no built-in way to carry an error back from a goroutine or to stop sibling goroutines once one fails. Code that reimplements this by hand tends to race on the shared error variable, or it forgets to cancel the remaining work, so goroutines keep running past the point where their result no longer matters.
+A plain `sync.WaitGroup` has no built-in way to carry an error back from a goroutine or to stop sibling goroutines once one fails. Code that reimplements this by hand tends to race on the shared error variable. It can also forget to cancel the remaining work, so goroutines keep running past the point where their result no longer matters.
 
 **Fix:**
-Use `golang.org/x/sync/errgroup` for a group of goroutines that share a common fate: any one's error is enough to cancel the rest through the group's context, and `Wait` returns the first non-nil error safely.
+Use `golang.org/x/sync/errgroup` for a group of goroutines that share a common fate. Any one's error cancels the rest through the group's context, and `Wait` returns the first non-nil error safely.
 
 **Before:**
 ```go
@@ -326,7 +329,7 @@ if err := g.Wait(); err != nil {
 - A slice or map of structs that hold a `sync` type, where an element gets copied out by value.
 
 **Why this is a mistake:**
-Every type in the `sync` package carries internal state, such as a lock word or a wait counter, that must stay a single, shared instance across every goroutine that uses it. A copy, made by value assignment, a value receiver, or a copy out of a slice, starts its own independent state disconnected from the original, so a lock taken on the copy does not exclude a goroutine still holding the original.
+Every type in the `sync` package carries internal state, such as a lock word or a wait counter. This state must stay a single, shared instance across every goroutine that uses it. A copy can happen by value assignment, through a value receiver, or by a copy out of a slice. Each copy starts its own independent state, disconnected from the original. A lock taken on the copy does not exclude a goroutine still holding the original.
 
 **Fix:**
 Hold a `sync` type by pointer, or embed it in a struct that is itself always passed by pointer. Run `go vet`, which flags a `sync.Mutex` or similar type copied by value.
@@ -366,10 +369,10 @@ func increment(s *Safe) {
 - No reused `time.Timer` in a loop that needs a repeated timeout against the same duration.
 
 **Why this is a mistake:**
-`time.After` allocates a new `time.Timer` on every call and that timer's underlying channel stays allocated until it fires, however far in the future that is. A `select` inside a loop that calls `time.After` on each pass, and that usually takes some other branch, builds up one live timer per iteration, and none of them free their resources until each one's full duration elapses.
+`time.After` allocates a new `time.Timer` on every call and that timer's underlying channel stays allocated until it fires, however far in the future that is. A `select` inside a loop can call `time.After` on each pass, and usually take some other branch. This builds up one live timer per iteration, and none of them free their resources until each one's full duration elapses.
 
 **Fix:**
-Create one `time.NewTimer` or `time.NewTicker` outside the loop and reuse it, resetting it with `Reset` as needed, or call `Stop` on a timer once its result is no longer needed. Reserve `time.After` for a `select` that runs once, not one inside a loop.
+Create one `time.NewTimer` or `time.NewTicker` outside the loop and reuse it. Reset it with `Reset` as needed, or call `Stop` once its result is no longer needed. Reserve `time.After` for a `select` that runs once, not one inside a loop.
 
 **Before:**
 ```go
@@ -410,7 +413,7 @@ for {
 - A cancellation function returned by `context.WithCancel`, `WithTimeout`, or `WithDeadline` that is never called, on any code path.
 
 **Why this is a mistake:**
-`context.Background()` carries no deadline and no cancellation signal, so code that reaches for it instead of the request's real context loses the ability to cancel that work when the request ends, and loses any values or deadlines the caller set. A cancel function left uncalled keeps the context's internal timer or goroutine alive until its deadline passes on its own, which leaks resources for however long that takes.
+`context.Background()` carries no deadline and no cancellation signal. Code that reaches for it instead of the request's real context loses the ability to cancel that work when the request ends. It also loses any values or deadlines the caller set. A cancel function left uncalled keeps the context's internal timer or goroutine alive until its deadline passes. This leaks resources for however long that takes.
 
 **Fix:**
 Pass the caller's `context.Context` down through a call chain instead of starting a fresh `context.Background()` partway through. Always call the cancel function returned by a `With*` constructor, typically with `defer`, on every path, including error paths.

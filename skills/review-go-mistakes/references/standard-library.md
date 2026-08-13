@@ -18,7 +18,7 @@ Every entry starts as `[verify]`. Drop the tag after cross-check against the boo
 - A duration value read from config or a flag, held as an `int`, passed straight into a `time` function with no unit conversion.
 
 **Why this is a mistake:**
-A `time.Duration` is a count of nanoseconds under the hood, but the Go compiler accepts a bare integer literal since it converts to the named type. Code that assumes the unit is seconds or milliseconds compiles clean, but the sleep, timeout, or tick fires after the wrong number of nanoseconds.
+A `time.Duration` is a count of nanoseconds under the hood. The Go compiler still accepts a bare integer literal, since it converts to the named type. Code that assumes the unit is seconds or milliseconds compiles clean, but the sleep, timeout, or tick fires after the wrong number of nanoseconds.
 
 **Fix:**
 Build every duration from the `time` constants, such as `time.Second`, `time.Millisecond`, or `time.Minute`, multiplied by the count. Never pass a bare integer literal to a function that wants a `time.Duration`.
@@ -48,7 +48,7 @@ time.Sleep(1000 * time.Millisecond)
 - Profile output that shows a hot path spending time inside `regexp.Compile`.
 
 **Why this is a mistake:**
-Compiling a regular expression parses the pattern and builds an internal matching engine, work that costs far more than running a match against an already-compiled expression. A fixed pattern rebuilt on every call repeats this cost for no benefit and slows the hot path.
+When code compiles a regular expression, it parses the pattern and builds an internal matching engine. This work costs far more than running a match against an already-compiled expression. A fixed pattern rebuilt on every call repeats this cost for no benefit and slows the hot path.
 
 **Fix:**
 Compile a fixed pattern once, at package scope, with `regexp.MustCompile`. Reuse the resulting `*regexp.Regexp` value across calls; it is safe for concurrent use.
@@ -78,15 +78,16 @@ func isValidID(id string) bool {
 ### #73 — Common JSON handling mistakes [verify]
 
 **Pattern to look for:**
-- An embedded struct type that also carries JSON tags on its own fields, where the outer struct expects those fields to marshal as its own top-level keys.
+- An embedded struct type that also carries JSON tags on its own fields.
+- An outer struct that expects those fields to marshal as its own top-level keys.
 - A `time.Time` value serialized to JSON, then compared with `==` or `reflect.DeepEqual` against a value decoded back from that JSON.
 - Numeric values that pass through `encoding/json` into a `float64` field or an `any` field, then get compared or summed as if they held exact integers.
 
 **Why this is a mistake:**
-Type embedding does not flatten JSON tags the way it flattens method sets; an embedded type with its own `json` tags can marshal to nested or unexpected keys. A `time.Time` value carries a monotonic reading that a JSON round trip strips, so the decoded value differs from the original under a strict comparison. And JSON numbers decode to `float64` by default, so a large integer can lose precision.
+Type embedding does not flatten JSON tags the way it flattens method sets. An embedded type with its own `json` tags can marshal to nested or unexpected keys. A `time.Time` value carries a monotonic reading that a JSON round trip strips, so the decoded value differs from the original under a strict comparison. JSON numbers also decode to `float64` by default, so a large integer can lose precision.
 
 **Fix:**
-Give an embedded type no JSON tag of its own when the fields must appear at the outer level, or embed it without JSON-specific naming conflicts. Compare `time.Time` values with `Equal`, not `==`. Decode large integers with `json.Number` or into an explicit integer field, not into `any`.
+Give an embedded type no JSON tag of its own when the fields must appear at the outer level. As an alternative, embed it without JSON-specific naming conflicts. Compare `time.Time` values with `Equal`, not `==`. Decode large integers with `json.Number`, or into an explicit integer field, not into `any`.
 
 **Before:**
 ```go
@@ -122,7 +123,7 @@ fmt.Println(out.Timestamp.Equal(original.Timestamp))
 - Query parameters built by string concatenation or `fmt.Sprintf` instead of placeholder arguments passed to `Query` or `Exec`.
 
 **Why this is a mistake:**
-`Rows.Close` releases the underlying connection back to the pool; skip it, and connections leak until the pool runs dry. `rows.Next()` returns `false` both when the rows are exhausted and when an error interrupts the scan, so a loop that never checks `rows.Err()` can treat a failed read as a clean, complete result. Concatenated SQL text opens the door to SQL injection.
+`Rows.Close` releases the underlying connection back to the pool; skip it, and connections leak until the pool runs dry. `rows.Next()` returns `false` both when the rows are exhausted and when an error interrupts the scan. A loop that never checks `rows.Err()` can then treat a failed read as a clean, complete result. Concatenated SQL text opens the door to SQL injection.
 
 **Fix:**
 Call `defer rows.Close()` right after a successful `Query` call, on every code path. Check `rows.Err()` right after the `for rows.Next()` loop. Pass values as placeholder arguments, never as concatenated text.
@@ -166,10 +167,10 @@ if err := rows.Err(); err != nil {
 - A `sql.Rows` value from a query, read without a `defer rows.Close()` right after the error check.
 
 **Why this is a mistake:**
-A response body, an open file, and a result-set cursor each hold on to an operating-system resource, such as a file descriptor or a network connection, until code calls `Close`. Skip the call, or place it after a path that returns early, and the resource stays held until the process runs out of descriptors or connections.
+A response body, an open file, and a result-set cursor each hold an operating-system resource open. Examples include a file descriptor or a network connection. Each stays open until code calls `Close`. Skip the call, or place it after a path that returns early. The resource then stays held until the process runs out of descriptors or connections.
 
 **Fix:**
-Call `defer resp.Body.Close()`, `defer f.Close()`, or `defer rows.Close()` immediately after the error check that follows the call that opens the resource, before any other code runs.
+Call `defer resp.Body.Close()`, `defer f.Close()`, or `defer rows.Close()` after the error check that follows the call that opens the resource. Place this before any other code runs.
 
 **Before:**
 ```go
@@ -203,7 +204,7 @@ body, err := io.ReadAll(resp.Body)
 - A handler that writes a second header or body after an error response already wrote one.
 
 **Why this is a mistake:**
-`http.Error` writes a status code and a body to the response writer, but it does not stop the handler function. Code that runs after it can write a second header, which Go logs as a warning and ignores, or write more body content that gets appended after the error message, confusing the client.
+`http.Error` writes a status code and a body to the response writer, but it does not stop the handler function. Code that runs after it can write a second header, which Go logs as a warning and ignores. It can also write more body content, which gets appended after the error message and confuses the client.
 
 **Fix:**
 Place a `return` statement directly after every `http.Error` call, unless the call is already the last statement on that path.
@@ -242,7 +243,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 - No shutdown path for a running server, such as a call to `Server.Shutdown` on an interrupt signal.
 
 **Why this is a mistake:**
-`http.DefaultClient` sets no timeout, so a call that never gets a response can block a goroutine for good. `http.ListenAndServe` builds a server with no read, write, or idle timeouts either, so a slow or stalled client connection can hold a server goroutine open indefinitely. Neither path offers a way to drain in-flight requests before the process exits.
+`http.DefaultClient` sets no timeout, so a call that never gets a response can block a goroutine for good. `http.ListenAndServe` builds a server with no read, write, or idle timeouts either. A slow or stalled client connection can then hold a server goroutine open indefinitely. Neither path offers a way to drain in-flight requests before the process exits.
 
 **Fix:**
 Build an explicit `http.Client` with a `Timeout` field set for outgoing calls. Build an explicit `http.Server` with `ReadTimeout`, `WriteTimeout`, and `IdleTimeout` set, and call `Shutdown` on a termination signal.
@@ -271,10 +272,10 @@ resp, err := client.Get(url)
 - Code that only sometimes takes a lock around map access, on some call paths but not others.
 
 **Why this is a mistake:**
-The built-in map type is not safe for concurrent use. A concurrent read and write, or two concurrent writes, on a plain map can corrupt its internal state; Go's race detector flags this, and an unguarded build can crash the process outright with a fatal, unrecoverable error.
+The built-in map type is not safe for concurrent use. A concurrent read and write, or two concurrent writes, on a plain map can corrupt its internal state. Go's race detector flags this, and an unguarded build can crash the process outright with a fatal, unrecoverable error.
 
 **Fix:**
-Guard a plain map's reads and writes with a `sync.Mutex` or `sync.RWMutex` held around every access. Use `sync.Map` instead when the access pattern is dominated by disjoint keys read and written from many goroutines with little contention.
+Guard a plain map's reads and writes with a `sync.Mutex` or `sync.RWMutex` held around every access. Use `sync.Map` instead when the access pattern favors disjoint keys, read and written from many goroutines with little contention.
 
 **Before:**
 ```go

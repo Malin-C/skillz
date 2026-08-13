@@ -18,10 +18,10 @@ Every entry starts as `[verify]`. Drop the tag after cross-check against the boo
 - A CI pipeline that always runs the full test suite, with no fast path for local, per-commit checks.
 
 **Why this is a mistake:**
-Unit tests, integration tests, and end-to-end tests differ in speed and in what they depend on. When all tests run as one group, a developer cannot run only the fast unit tests during local work, and a slow or flaky integration test slows down or blocks every run.
+Unit tests, integration tests, and end-to-end tests differ in speed and in what they depend on. When all tests run as one group, a developer cannot run only the fast unit tests during local work. A slow or flaky integration test then slows down or blocks every run.
 
 **Fix:**
-Split test kinds with a build tag, such as `//go:build integration`, or with a naming convention plus a short flag check. Give each kind its own `go test` invocation in the `Makefile` and in CI, so unit tests run on every commit and slower tests run on a separate schedule.
+Split test kinds with a build tag, such as `//go:build integration`, or with a naming convention plus a flag check. Give each kind its own `go test` invocation in the `Makefile` and in CI. Unit tests then run on every commit, and slower tests run on a separate schedule.
 
 **Before:**
 ```go
@@ -70,7 +70,7 @@ func TestOrderSavesToDB(t *testing.T) {
 - A bug report about a value that changes at random between test runs, with no clear cause in the test logic itself.
 
 **Why this is a mistake:**
-Go's race detector finds unsynchronized concurrent access to shared memory. A test suite that never runs with `-race` can pass every time in CI, while the same code corrupts data or panics under real concurrent load in production.
+Go's race detector finds unsynchronized concurrent access to shared memory. A test suite that never runs with `-race` can pass every time in CI. Meanwhile, the same code corrupts data or panics under real concurrent load in production.
 
 **Fix:**
 Add `-race` to the `go test` command in CI, at least on one platform per pipeline run. Treat a race detector failure as a build-breaking error, not a warning to defer.
@@ -101,10 +101,10 @@ go test -race ./...
 - No use of the `-shuffle` flag to check whether tests depend on run order or on each other's side effects.
 
 **Why this is a mistake:**
-Tests that run in strict sequence, one at a time, waste time on a large suite when many tests do not share state. Tests that always run in the same order can also hide a hidden dependency between tests, where one test's side effect makes a later test pass.
+Tests that run in strict sequence, one at a time, waste time on a large suite when many tests do not share state. Tests that always run in the same order can also hide a dependency between tests, where one test's side effect makes a later test pass.
 
 **Fix:**
-Call `t.Parallel()` in independent test functions to run them concurrently and cut suite time. Run `go test -shuffle=on` from time to time to catch tests that rely on a fixed run order or on leftover state from another test.
+Call `t.Parallel()` in independent test functions to run them concurrently and cut suite time. Run `go test -shuffle=on` from time to time. This catches tests that rely on a fixed run order or on leftover state from another test.
 
 **Before:**
 ```go
@@ -151,7 +151,7 @@ func TestParseB(t *testing.T) {
 Repeated test functions that differ only in input and expected output duplicate the setup and assertion code many times over. A fix to the assertion logic then needs the same edit in every copy, and a missed copy leaves stale, inconsistent test logic behind.
 
 **Fix:**
-Collect the input and expected output pairs into a slice of structs, then loop over the slice with a single test body and a subtest per case through `t.Run`.
+Collect the input and expected output pairs into a slice of structs. Loop over the slice with a single test body and a subtest per case through `t.Run`.
 
 **Before:**
 ```go
@@ -205,10 +205,10 @@ func TestValidate(t *testing.T) {
 - A test that fails at random on a slow CI runner but passes on a fast local machine.
 
 **Why this is a mistake:**
-A fixed sleep duration is a guess about how long an asynchronous operation takes. A sleep that is too short leaves a flaky test that fails when the system runs slower than usual, and a sleep that is long enough to be safe wastes time on every run.
+A fixed sleep duration is a guess about how long an asynchronous operation takes. A sleep that is too short leaves a flaky test that fails when the system runs slower than usual. A sleep that is long enough to be safe wastes time on every run instead.
 
 **Fix:**
-Replace the sleep with a wait on a channel, a `sync.WaitGroup`, or a poll loop that checks the condition on a short interval with a bounded timeout, such as through `require.Eventually` or a hand-written loop with `context.WithTimeout`.
+Replace the sleep with a wait on a channel or a `sync.WaitGroup`. As an alternative, use a poll loop that checks the condition on a short interval with a bounded timeout. Examples include `require.Eventually` or a hand-written loop with `context.WithTimeout`.
 
 **Before:**
 ```go
@@ -247,10 +247,10 @@ func TestAsyncJobCompletes(t *testing.T) {
 - No interface or function type in the code that stands in for the clock.
 
 **Why this is a mistake:**
-Code that calls `time.Now()` directly ties its behavior to the real, ever-moving clock. A test for that code cannot set a fixed point in time, so the test must either accept a slack margin around the expected result or skip the time-dependent path.
+Code that calls `time.Now()` directly ties its behavior to the real, ever-moving clock. A test for that code cannot set a fixed point in time. The test must then either accept a slack margin around the expected result, or skip the time-dependent path.
 
 **Fix:**
-Inject the time source, such as through a `func() time.Time` field, a small clock interface, or a passed-in `time.Time` argument, so a test can supply a fixed value. Keep the direct `time.Now()` call only at the outermost layer that wires the real clock in.
+Inject the time source, such as through a `func() time.Time` field, a small clock interface, or a passed-in `time.Time` argument. This lets a test supply a fixed value. Keep the direct `time.Now()` call only at the outermost layer that wires the real clock in.
 
 **Before:**
 ```go
@@ -278,11 +278,12 @@ func isExpired(now Clock, createdAt time.Time) bool {
 
 **Pattern to look for:**
 - A test for an HTTP handler that spins up a real `net.Listener` on a live port instead of using `httptest.NewServer` or `httptest.NewRecorder`.
-- A test for `io.Reader` or `io.Writer` code that exercises only the happy path, with no check for a short read, a delayed write, or an error mid-stream.
+- A test for `io.Reader` or `io.Writer` code that exercises only the happy path.
+- No check for a short read, a delayed write, or an error mid-stream.
 - Hand-written mock structs that reimplement behavior the standard library already provides through `httptest` or `iotest`.
 
 **Why this is a mistake:**
-The standard library ships tested, purpose-built helpers for common test scenarios. Code that skips these helpers either under-tests edge cases, such as partial reads, or spends effort on custom test infrastructure that duplicates what `net/http/httptest` and `testing/iotest` already do.
+The standard library ships tested, purpose-built helpers for common test scenarios. Code that skips these helpers either under-tests edge cases, such as partial reads. It can also spend effort on custom test infrastructure that duplicates what `net/http/httptest` and `testing/iotest` already do.
 
 **Fix:**
 Use `httptest.NewRecorder` and `httptest.NewServer` to test HTTP handlers and clients without a real network listener. Use `iotest.TestReader`, `iotest.ErrReader`, and similar helpers from `testing/iotest` to check `io.Reader` and `io.Writer` implementations against odd input.
@@ -324,10 +325,10 @@ func TestHandler(t *testing.T) {
 - A benchmark that calls `b.RunParallel` with no clear reason, or one that never uses it where contention is the actual concern.
 
 **Why this is a mistake:**
-The Go compiler can eliminate a computation whose result nothing uses, so a benchmark loop can end up timing an empty operation instead of the real work. Setup code left inside the timed section adds a fixed cost to every benchmark result and skews the reported per-operation time.
+The Go compiler can eliminate a computation whose result nothing uses. A benchmark loop can then end up timing an empty operation instead of the real work. Setup code left inside the timed section adds a fixed cost to every benchmark result and skews the reported per-operation time.
 
 **Fix:**
-Store the loop's result in a package-level variable so the compiler cannot discard the computation. Call `b.ResetTimer()` right after one-time setup work, and reach for `b.RunParallel` only when the benchmark specifically checks behavior under concurrent load.
+Store the loop's result in a package-level variable so the compiler cannot discard the computation. Call `b.ResetTimer()` right after one-time setup work. Reach for `b.RunParallel` only when the benchmark checks behavior under concurrent load.
 
 **Before:**
 ```go
@@ -364,14 +365,16 @@ func BenchmarkCompute(b *testing.B) {
 
 **Pattern to look for:**
 - A shared assertion function, called from many tests, that reports failures with `t.Errorf` but never calls `t.Helper()`.
-- A test suite that opens temporary files or servers and closes or removes them by hand in every test, instead of registering the cleanup with `t.Cleanup`.
-- No use of `testing.F` fuzz targets on functions that parse or decode untrusted input, and no use of `t.Run` subtests to group related cases under one parent test.
+- A test suite that opens temporary files or servers and closes or removes them by hand in every test.
+- No use of `t.Cleanup` to register that cleanup instead.
+- No use of `testing.F` fuzz targets on functions that parse or decode untrusted input.
+- No use of `t.Run` subtests to group related cases under one parent test.
 
 **Why this is a mistake:**
-A failure inside a helper function that skips `t.Helper()` reports the line inside the helper, not the line in the test that called it, which slows down debugging. Manual cleanup code, repeated in every test, is easy to forget on one new test, which leaves temporary resources behind and can leak state between test runs.
+A failure inside a helper function that skips `t.Helper()` reports the line inside the helper, not the line in the test that called it. This slows down debugging. Manual cleanup code, repeated in every test, is easy to forget on one new test. A forgotten cleanup call leaves temporary resources behind and can leak state between test runs.
 
 **Fix:**
-Call `t.Helper()` at the top of any function that performs assertions or setup on behalf of a test. Register cleanup with `t.Cleanup` right after a resource opens, use `t.Run` to organize related cases as subtests, and use `testing.F` fuzz targets to explore parser and decoder edge cases the developer would not think to write by hand.
+Call `t.Helper()` at the top of any function that performs assertions or setup on behalf of a test. Register cleanup with `t.Cleanup` right after a resource opens. Use `t.Run` to organize related cases as subtests. Use `testing.F` fuzz targets to explore parser and decoder edge cases a developer would not think to write by hand.
 
 **Before:**
 ```go

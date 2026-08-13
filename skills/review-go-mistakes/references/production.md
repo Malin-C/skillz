@@ -18,7 +18,7 @@ Every entry starts as `[verify]`. Drop the tag after cross-check against the boo
 - An incident review with no metric to show request rate, error rate, or latency at the time of the incident.
 
 **Why this is a mistake:**
-Logs show single events. Metrics show trends and rates over time, at low storage cost per data point. A service with no metrics gives an operator no fast way to see whether error rate or latency changed, so the operator must dig through logs during an incident instead of reading a dashboard.
+Logs show single events. Metrics show trends and rates over time, at low storage cost per data point. A service with no metrics gives an operator no fast way to see whether error rate or latency changed. The operator must then dig through logs during an incident instead of reading a dashboard.
 
 **Fix:**
 Add a metrics library, such as `prometheus/client_golang` or an OpenTelemetry metrics exporter. Record a counter for requests and errors, and a histogram for request duration, on each handler.
@@ -68,7 +68,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 - A profiling endpoint imported, but exposed on the same port and route tree as public traffic, with no access control.
 
 **Why this is a mistake:**
-The `pprof` package adds a small, near-zero cost when idle, but it lets an operator capture a live CPU or memory profile from a running process. A service built with no `pprof` endpoint gives the operator no way to profile the exact process and state that caused an incident, so the cause can go unconfirmed after a restart clears the state.
+The `pprof` package adds a small, near-zero cost when idle. It lets an operator capture a live CPU or memory profile from a running process. A service built with no `pprof` endpoint gives the operator no way to profile the exact process and state that caused an incident. The cause can then go unconfirmed after a restart clears the state.
 
 **Fix:**
 Import `net/http/pprof` for its registration side effect, and serve it on a separate internal port, not the public listener. Restrict access to the profiling port with a firewall rule or an internal network boundary.
@@ -108,10 +108,10 @@ func main() {
 - No consistent field names for common values, such as request ID or user ID, across log lines from different parts of the service.
 
 **Why this is a mistake:**
-A free-text log line packs data and message into one string with no fixed shape. A log search or alert rule built on top of free text breaks whenever the message wording changes, and it cannot filter or aggregate on a field, such as user ID, without a fragile regular expression.
+A free-text log line packs data and message into one string with no fixed shape. A log search or alert rule built on top of free text breaks whenever the message wording changes. It also cannot filter or aggregate on a field, such as user ID, without a fragile regular expression.
 
 **Fix:**
-Use a structured logging package, such as `log/slog` in the standard library, that logs each field as a distinct key-value pair. Keep field names consistent across the service so log queries and alerts stay stable across message wording changes.
+Use a structured logging package, such as `log/slog` in the standard library. It logs each field as a distinct key-value pair. Keep field names consistent across the service so log queries and alerts stay stable across message wording changes.
 
 **Before:**
 ```go
@@ -140,10 +140,10 @@ logger.Error("user request failed",
 - A deployment with rolling updates or autoscaling, where a Go service shows dropped connections during each rollout.
 
 **Why this is a mistake:**
-An orchestrator, such as Kubernetes, sends `SIGTERM` before it kills a container, then waits a grace period before it sends `SIGKILL`. A service that ignores `SIGTERM` gets killed mid-request on the next deploy or scale-down event, which drops in-flight requests and can leave shared state, such as a database write, half done.
+An orchestrator, such as Kubernetes, sends `SIGTERM` before it kills a container, then waits a grace period before it sends `SIGKILL`. A service that ignores `SIGTERM` gets killed mid-request on the next deploy or scale-down event. This drops in-flight requests and can leave shared state, such as a database write, half done.
 
 **Fix:**
-Listen for `SIGTERM` and `SIGINT` with `signal.NotifyContext` or a similar mechanism. On signal, call the server's `Shutdown` method with a bounded context, so in-flight requests get a chance to finish before the process exits.
+Listen for `SIGTERM` and `SIGINT` with `signal.NotifyContext` or a similar mechanism. On signal, call the server's `Shutdown` method with a bounded context. In-flight requests then get a chance to finish before the process exits.
 
 **Before:**
 ```go
@@ -186,10 +186,10 @@ func main() {
 - A latency-sensitive service with no monitoring of GC pause time or heap size, so memory pressure builds with no alert before an out-of-memory event.
 
 **Why this is a mistake:**
-`GOGC`, `GOMAXPROCS`, and `GOMEMLIMIT` control how the Go runtime trades CPU time against memory use and pause time. The default values fit a general workload, not a specific one. A team that leaves these settings untouched, and does not monitor heap size or GC pause time in production, tunes the service by guesswork after an incident instead of by data gathered ahead of time.
+`GOGC`, `GOMAXPROCS`, and `GOMEMLIMIT` control how the Go runtime trades CPU time against memory use and pause time. The default values fit a general workload, not a specific one. A team can leave these settings untouched, and not monitor heap size or GC pause time in production. That team then tunes the service by guesswork after an incident, instead of from data gathered ahead of time.
 
 **Fix:**
-Watch runtime metrics, such as heap size, GC pause time, and CPU time spent in GC, through `runtime/metrics` or a metrics exporter. Raise `GOGC` to trade memory for less frequent GC on a CPU-bound service, or set `GOMEMLIMIT` to cap heap growth on a memory-constrained one. Set `GOMAXPROCS` to match the workload's real parallelism needs, not just the available core count. Re-check these settings as the workload changes over time.
+Watch runtime metrics, such as heap size and GC pause time, through `runtime/metrics` or a metrics exporter. Also watch CPU time spent in GC. Raise `GOGC` to trade memory for less frequent GC on a CPU-bound service. As an alternative, set `GOMEMLIMIT` to cap heap growth on a memory-constrained one. Set `GOMAXPROCS` to match the workload's real parallelism needs, not just the available core count. Re-check these settings as the workload changes over time.
 
 **Before:**
 ```go
