@@ -1,0 +1,16 @@
+{
+  "name": "go-mistakes",
+  "description": "Reviews Go source code against the 100 mistakes from Harsanyi's \"100 Go Mistakes and How to Avoid Them\". Produces a markdown report grouped by book category, written in ASD-STE100 Simplified Technical English.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Malin Cumpanasu",
+    "email": "malinc20@gmail.com"
+  },
+  "repository": "git@github-malin:Malin-C/skillz.git",
+  "license": "MIT",
+  "keywords": [
+    "go",
+    "code-review",
+    "quality"
+  ]
+}

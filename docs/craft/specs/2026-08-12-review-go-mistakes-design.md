@@ -22,7 +22,7 @@ skillz/
 ├── README.md              # what this repo is + how to install skills
 ├── install.sh             # symlink a named skill into a target location
 ├── docs/
-│   └── superpowers/
+│   └── craft/
 │       └── specs/         # design specs live here
 └── skills/
     └── review-go-mistakes/
