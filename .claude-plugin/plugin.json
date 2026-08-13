@@ -1,0 +1,11 @@
+{
+  "name": "skillz",
+  "description": "Personal collection of custom skills for Claude Code",
+  "version": "1.0.0",
+  "author": {
+    "name": "Malin Cumpanasu",
+    "email": "malinc20@gmail.com"
+  },
+  "repository": "git@github-malin:Malin-C/skillz.git",
+  "license": "MIT"
+}

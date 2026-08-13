@@ -1,0 +1,20 @@
+{
+  "name": "skillz",
+  "description": "Personal collection of custom skills for Claude Code",
+  "owner": {
+    "name": "Malin Cumpanasu",
+    "email": "malinc20@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "skillz",
+      "description": "Personal collection of custom skills for Claude Code",
+      "version": "1.0.0",
+      "source": "./",
+      "author": {
+        "name": "Malin Cumpanasu",
+        "email": "malinc20@gmail.com"
+      }
+    }
+  ]
+}
