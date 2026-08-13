@@ -16,6 +16,12 @@ Reviews Go source code against the 100 mistakes from *100 Go Mistakes and How to
 
 Location: [plugins/go-mistakes/](plugins/go-mistakes/)
 
+### ste100
+
+Forces all Claude-written prose (replies, docs, commit messages, comments) into ASD-STE100 Simplified Technical English, via a SessionStart hook plus a reusable `writing-ste100` skill other skills can reference.
+
+Location: [plugins/ste100/](plugins/ste100/)
+
 ## Install
 
 Add this marketplace to Claude Code:
@@ -29,6 +35,7 @@ Then install individual plugins:
 ```
 /plugin install craft@skillz
 /plugin install go-mistakes@skillz
+/plugin install ste100@skillz
 ```
 
 ## Layout

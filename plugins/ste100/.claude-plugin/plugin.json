@@ -1,0 +1,18 @@
+{
+  "name": "ste100",
+  "description": "Forces all Claude-written prose (replies, docs, commit messages, comments) into ASD-STE100 Simplified Technical English via a SessionStart hook, plus a reusable writing-ste100 skill other skills can reference.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Malin Cumpanasu",
+    "email": "malinc20@gmail.com"
+  },
+  "repository": "git@github-malin:Malin-C/skillz.git",
+  "license": "MIT",
+  "keywords": [
+    "ste100",
+    "simplified-technical-english",
+    "controlled-english",
+    "writing",
+    "documentation"
+  ]
+}

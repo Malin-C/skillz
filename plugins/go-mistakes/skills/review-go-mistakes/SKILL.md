@@ -265,7 +265,7 @@ Rules:
 
 ## Language
 
-Write all report text in ASD-STE100 Simplified Technical English. Key rules:
+Write all report text in ASD-STE100 Simplified Technical English. If the `ste100:writing-ste100` skill is installed, use it for the full rule set. Otherwise apply these rules:
 - Use approved STE dictionary words.
 - One word, one meaning. One part of speech per word.
 - Active voice.

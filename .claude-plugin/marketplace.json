@@ -25,6 +25,16 @@
         "name": "Malin Cumpanasu",
         "email": "malinc20@gmail.com"
       }
+    },
+    {
+      "name": "ste100",
+      "description": "Forces all Claude-written prose into ASD-STE100 Simplified Technical English",
+      "version": "0.1.0",
+      "source": "./plugins/ste100",
+      "author": {
+        "name": "Malin Cumpanasu",
+        "email": "malinc20@gmail.com"
+      }
     }
   ]
 }
